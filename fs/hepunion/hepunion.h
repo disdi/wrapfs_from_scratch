@@ -69,6 +69,7 @@
 
  /* wrapfs inode data in memory */
  struct wrapfs_inode_info {
+         struct inode *upper_inode;
          struct inode *lower_inode;
          struct inode vfs_inode;
  };
