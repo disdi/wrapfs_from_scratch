@@ -367,14 +367,17 @@ struct wrapfs_inode_info *wrap_entry_real(struct inode *inode)
 
 static int wrapfs_permission(struct inode *inode, int mask)
 {
-	struct wrapfs_inode_info *real;
+	struct wrapfs_inode_info *real_rw, *real_ro;
 	int err;
 
-        real = wrap_entry_real(inode);
-        if(real != NULL)      
-        	err = __inode_permission(real->upper_inode, mask);
-     //  	else
-	//	err = __inode_permisssion(real->lower_inode, mask);
+        real_rw = wrap_entry_real(inode);
+        if (!real_rw)
+        {
+    	   real_ro = wrap_entry_real(inode);
+	   err = __inode_permission(real_ro->lower_inode, mask);	               
+	} 
+        else
+	   err = __inode_permission(real_rw->lower_inode, mask);
 
 	return err;
 }
