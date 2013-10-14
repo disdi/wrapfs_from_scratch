@@ -97,78 +97,46 @@ static int wrapfs_inode_set(struct inode *inode, void *lower_inode)
 	return 0;
 }
 
-struct inode *wrapfs_iget(struct super_block *sb, struct inode *lower_inode)
+struct inode *wrapfs_iget(struct super_block *sb, umode_t mode)
 {
-	struct wrapfs_inode_info *info;
-	struct inode *inode; /* the new inode to return */
-	int err;
+         struct inode *inode;
 
-	inode = iget5_locked(sb, /* our superblock */
-			     /*
-			      * hashval: we use inode number, but we can
-			      * also use "(unsigned long)lower_inode"
-			      * instead.
-			      */
-			     lower_inode->i_ino, /* hashval */
-			     wrapfs_inode_test,	/* inode comparison function */
-			     wrapfs_inode_set, /* inode init function */
-			     lower_inode); /* data passed to test+set fxns */
-	if (!inode) {
-		err = -EACCES;
-		iput(lower_inode);
-		return ERR_PTR(err);
-	}
-	/* if found a cached inode, then just return it */
-	if (!(inode->i_state & I_NEW))
-		return inode;
+        inode = new_inode(sb);
+        if (!inode)
+                return NULL;
 
-	/* initialize new inode */
-	info = WRAPFS_I(inode);
+        mode &= S_IFMT;
 
-	inode->i_ino = lower_inode->i_ino;
-	if (!igrab(lower_inode)) {
-		err = -ESTALE;
-		return ERR_PTR(err);
-	}
-	wrapfs_set_lower_inode(inode, lower_inode);
+        inode->i_ino = get_next_ino();
+        inode->i_mode = mode;
+        inode->i_flags |= S_NOATIME | S_NOCMTIME;
 
-	inode->i_version++;
+        switch (mode) {
+        case S_IFDIR:
+                inode->i_op = &wrapfs_main_iops;
+                inode->i_fop = &wrapfs_dir_iops;
+                break;
 
-	/* use different set of inode ops for symlinks & directories */
-	if (S_ISDIR(lower_inode->i_mode))
-		inode->i_op = &wrapfs_dir_iops;
-	else if (S_ISLNK(lower_inode->i_mode))
-		inode->i_op = &wrapfs_symlink_iops;
-	else
-		inode->i_op = &wrapfs_main_iops;
+        case S_IFLNK:
+                inode->i_op = &wrapfs_symlink_iops;
+                break;
 
-	/* use different set of file ops for directories */
-	if (S_ISDIR(lower_inode->i_mode))
-		inode->i_fop = &wrapfs_dir_fops;
-	else
-		inode->i_fop = &wrapfs_main_fops;
+        case S_IFREG:
+        case S_IFSOCK:
+        case S_IFBLK:
+        case S_IFCHR:
+        case S_IFIFO:
+                inode->i_op = &wrapfs_main_iops;
+                break;
 
-	inode->i_mapping->a_ops = &wrapfs_aops;
+        default:
+                WARN(1, "illegal file type: %i\n", mode);
+                iput(inode);
+                inode = NULL;
+        }
 
-	inode->i_atime.tv_sec = 0;
-	inode->i_atime.tv_nsec = 0;
-	inode->i_mtime.tv_sec = 0;
-	inode->i_mtime.tv_nsec = 0;
-	inode->i_ctime.tv_sec = 0;
-	inode->i_ctime.tv_nsec = 0;
+        return inode;
 
-	/* properly initialize special inodes */
-	if (S_ISBLK(lower_inode->i_mode) || S_ISCHR(lower_inode->i_mode) ||
-	    S_ISFIFO(lower_inode->i_mode) || S_ISSOCK(lower_inode->i_mode))
-		init_special_inode(inode, lower_inode->i_mode,
-				   lower_inode->i_rdev);
-
-	/* all well, copy inode attributes */
-	fsstack_copy_attr_all(inode, lower_inode);
-	fsstack_copy_inode_size(inode, lower_inode);
-
-	unlock_new_inode(inode);
-	return inode;
 }
 
 /*
@@ -202,7 +170,7 @@ int wrapfs_interpose(struct dentry *dentry, struct super_block *sb,
 	 */
 
 	/* inherit lower inode number for wrapfs's inode */
-	inode = wrapfs_iget(sb, lower_inode);
+	//inode = wrapfs_iget(sb, lower_inode);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		goto out;

@@ -360,13 +360,22 @@ static void wrapfs_put_link(struct dentry *dentry, struct nameidata *nd,
 		kfree(buf);
 }
 
+struct wrapfs_inode_info *wrap_entry_real(struct inode *inode)
+{
+     return container_of(inode, struct wrapfs_inode_info, vfs_inode);
+}
+
 static int wrapfs_permission(struct inode *inode, int mask)
 {
-	struct inode *lower_inode;
+	struct wrapfs_inode_info *real;
 	int err;
-	pr_info("wrapfs permission\n");
-	lower_inode = wrapfs_lower_inode(inode);
-	err = inode_permission(lower_inode, mask);
+
+        real = wrap_entry_real(inode);
+        if(real != NULL)      
+        	err = __inode_permission(real->upper_inode, mask);
+     //  	else
+	//	err = __inode_permisssion(real->lower_inode, mask);
+
 	return err;
 }
 

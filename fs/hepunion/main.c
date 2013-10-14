@@ -250,7 +250,7 @@ static int make_path(const char *s, size_t n, char **path)
 	 filp_close(filp, NULL);
 
          /* get a new inode and allocate our root dentry */
-         inode = wrapfs_iget(sb, lower_path.dentry->d_inode);
+         inode = wrapfs_iget(sb, S_IFDIR);
          if (IS_ERR(inode)) {
                  err = PTR_ERR(inode);
                  goto out_sput;
@@ -287,7 +287,6 @@ static int make_path(const char *s, size_t n, char **path)
 
 	 inode_info->upper_inode = rw_inode;	
   	 inode_info->lower_inode = ro_inode;	
-	 memcpy(&(inode_info->vfs_inode), inode, sizeof(struct inode));
 	 sb->s_fs_info = inode_info;
 
  out_freeroot:
