@@ -287,6 +287,7 @@ static int make_path(const char *s, size_t n, char **path)
 
 	 inode_info->upper_inode = rw_inode;	
   	 inode_info->lower_inode = ro_inode;	
+	 memcpy(&(inode_info->vfs_inode), inode, sizeof(struct inode));
 	 sb->s_fs_info = inode_info;
 
  out_freeroot:
